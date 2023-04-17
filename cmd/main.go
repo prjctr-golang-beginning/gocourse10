@@ -29,6 +29,9 @@ func main() {
 	r.HandleFunc("/users/{id}", deleteUser).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
+
+	// exercises
+	// 1. Створіть API: отримати користувача по ID; Змінити статус існуючого користувача (active, banned). Дані про користувачів зберігайте у пам'яті
 }
 
 func getUsers(w http.ResponseWriter, _ *http.Request) {
