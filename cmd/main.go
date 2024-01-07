@@ -1,102 +1,57 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
-	"net/http"
-
-	"github.com/gorilla/mux"
+	"fmt"
+	"mvc/cmd/database"
 )
 
-type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
-var users = []User{
-	{ID: "1", Username: "john_doe", Email: "john.doe@example.com"},
-	{ID: "2", Username: "jane_doe", Email: "jane.doe@example.com"},
-}
-
 func main() {
-	r := mux.NewRouter()
+	database.GetInstance().SetConnection(&database.SqlDatabaseConnection{})
+	defer func() {
+		fmt.Println(database.GetInstance().DisconnectFromDatabase())
+	}()
 
-	r.HandleFunc("/users", getUsers).Methods("GET")
-	r.HandleFunc("/users", createUser).Methods("POST")
-	r.HandleFunc("/users/{id}", getUser).Methods("GET")
-	r.HandleFunc("/users/{id}", updateUser).Methods("PUT")
-	r.HandleFunc("/users/{id}", deleteUser).Methods("DELETE")
+	fmt.Println()
+	createRecord()
+	fmt.Println()
+	updateRecord()
+	fmt.Println()
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	nObserver := &database.DatabaseActivityLogger{}
 
-	// exercises
-	// 1. Створіть API: отримати користувача по ID; Змінити статус існуючого користувача (active, banned). Дані про користувачів зберігайте у пам'яті
-}
+	ddb := database.NewObservableDecorator(database.GetInstance())
+	ddb.RegisterObserver(nObserver)
+	database.SetInstance(ddb)
 
-func getUsers(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(users)
-}
+	fmt.Println()
+	createRecord()
 
-func createUser(w http.ResponseWriter, r *http.Request) {
-	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	fmt.Println()
+	deleteRecord()
+
+	if odb, ok := database.GetInstance().(database.Observable); ok {
+		odb.RemoveObserver(nObserver)
+		odb.RegisterObserver(&database.DatabaseActivityMetric{})
 	}
 
-	users = append(users, user)
-	w.WriteHeader(http.StatusCreated)
+	fmt.Println()
+	createRecord()
+
+	// Тут можна використовувати db для роботи з медичними даними.
+	fmt.Println("Singleton instance:", database.GetInstance())
 }
 
-func getUser(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	for _, user := range users {
-		if user.ID == params["id"] {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(user)
-			return
-		}
-	}
-
-	http.NotFound(w, r)
+func createRecord() {
+	// Отримання екземпляра синглтона.
+	_ = database.GetInstance().Execute(`Create`)
 }
 
-func updateUser(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	for index, user := range users {
-		if user.ID == params["id"] {
-			users = append(users[:index], users[index+1:]...)
-
-			var updatedUser User
-			err := json.NewDecoder(r.Body).Decode(&updatedUser)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			updatedUser.ID = params["id"]
-			users = append(users, updatedUser)
-
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-	}
-
-	http.NotFound(w, r)
+func updateRecord() {
+	// Отримання екземпляра синглтона.
+	_ = database.GetInstance().Execute(`Update`)
 }
 
-func deleteUser(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	for index, user := range users {
-		if user.ID == params["id"] {
-			users = append(users[:index], users[index+1:]...)
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-	}
-
-	http.NotFound(w, r)
+func deleteRecord() {
+	// Отримання екземпляра синглтона.
+	_ = database.GetInstance().Execute(`Delete`)
 }
