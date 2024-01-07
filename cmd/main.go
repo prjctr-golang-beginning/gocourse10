@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"mvc/cmd/database"
+	"gocours10/cmd/database"
 )
 
 func main() {
